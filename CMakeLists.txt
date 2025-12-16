@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.19...3.30)
+cmake_minimum_required(VERSION 3.18)
 project(tokenizers_cpp C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -109,11 +109,6 @@ endif ()
 get_filename_component(TOKENIZERS_CPP_ROOT ${CMAKE_CURRENT_LIST_FILE} DIRECTORY)
 set(TOKENIZERS_CPP_CARGO_SOURCE_PATH ${TOKENIZERS_CPP_ROOT}/rust)
 
-option(MSGPACK_USE_BOOST "Use Boost libraried" OFF)
-add_subdirectory(msgpack)
-
-option(MLC_ENABLE_SENTENCEPIECE_TOKENIZER "Enable SentencePiece tokenizer" ON)
-
 if(MSVC)
   set(TOKENIZERS_RUST_LIB "${TOKENIZERS_CPP_CARGO_BINARY_DIR}/tokenizers_c.lib")
 else()
@@ -150,42 +145,27 @@ add_custom_command(
   RUSTFLAGS="${TOKENIZERS_CPP_RUST_FLAGS}"
   ${CARGO_EXECUTABLE} build ${TOKENIZERS_CPP_CARGO_FLAGS}
   WORKING_DIRECTORY ${TOKENIZERS_CPP_CARGO_SOURCE_PATH}
-  POST_BUILD COMMAND
+  COMMAND
   ${CMAKE_COMMAND} -E copy
   ${TOKENIZERS_RUST_LIB} "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
+# Create a custom target for the Rust library build
+add_custom_target(tokenizers_c_rust_lib DEPENDS ${TOKENIZERS_RUST_LIB})
+
 set(
   TOKENIZER_CPP_SRCS
-  src/sentencepiece_tokenizer.cc
   src/huggingface_tokenizer.cc
-  src/rwkv_world_tokenizer.cc
 )
 add_library(tokenizers_cpp STATIC ${TOKENIZER_CPP_SRCS})
-target_include_directories(tokenizers_cpp PRIVATE sentencepiece/src)
-target_include_directories(tokenizers_cpp PRIVATE msgpack/include)
 target_include_directories(tokenizers_cpp PUBLIC ${TOKENIZERS_CPP_INCLUDE})
-if (MLC_ENABLE_SENTENCEPIECE_TOKENIZER STREQUAL "ON")
-    target_compile_definitions(tokenizers_cpp PUBLIC MLC_ENABLE_SENTENCEPIECE_TOKENIZER)
-endif ()
-target_link_libraries(tokenizers_cpp PRIVATE msgpack-cxx)
 
-# sentencepiece config
-option(SPM_ENABLE_SHARED "override sentence piece config" OFF)
-option(SPM_ENABLE_TCMALLOC "" OFF)
-# provide macro if it does not exist in cmake system
-# it is OK to skip those since we do not provide these apps in the ios
-# instead just link to the sentencepiece directly
-if (CMAKE_SYSTEM_NAME STREQUAL "iOS")
-  macro (set_xcode_property TARGET XCODE_PROPERTY XCODE_VALUE)
-      set_property (TARGET ${TARGET} PROPERTY
-          XCODE_ATTRIBUTE_${XCODE_PROPERTY} ${XCODE_VALUE})
-  endmacro (set_xcode_property)
-endif()
-add_subdirectory(sentencepiece sentencepiece EXCLUDE_FROM_ALL)
-
-add_library(tokenizers_c INTERFACE ${TOKENIZERS_RUST_LIB})
+add_library(tokenizers_c INTERFACE)
 target_link_libraries(tokenizers_c INTERFACE ${TOKENIZERS_RUST_LIB} ${TOKENIZERS_C_LINK_LIBS})
+# Make tokenizers_c depend on the Rust library build
+add_dependencies(tokenizers_c tokenizers_c_rust_lib)
 
-target_link_libraries(tokenizers_cpp PRIVATE tokenizers_c sentencepiece-static ${TOKENIZERS_CPP_LINK_LIBS})
+# tokenizers_cpp depends on tokenizers_c for the Rust library symbols
+target_link_libraries(tokenizers_cpp PRIVATE tokenizers_c)
+
 target_include_directories(tokenizers_cpp PUBLIC ${TOKENIZERS_CPP_INCLUDE})

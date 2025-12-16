@@ -1,33 +1,42 @@
-#/bin/bash
+#!/bin/bash
 
 # build
 mkdir -p build
 cd build
 cmake ..
-make -j8
+cmake --build . --config Release -j8
 cd ..
 # get example files
 
 mkdir -p dist
 cd dist
 if [ ! -f "tokenizer.model" ]; then
-    wget https://huggingface.co/lmsys/vicuna-7b-v1.5/resolve/main/tokenizer.model
+    curl -fSL -o tokenizer.model https://huggingface.co/lmsys/vicuna-7b-v1.5/resolve/main/tokenizer.model
 fi
 if [ ! -f "tokenizer.json" ]; then
-    wget https://huggingface.co/togethercomputer/RedPajama-INCITE-Chat-3B-v1/resolve/main/tokenizer.json
-fi
-if [ ! -f "tokenizer_model" ]; then
-    wget https://github.com/BBuf/run-rwkv-world-4-in-mlc-llm/releases/download/v1.0.0/tokenizer_model.zip
-    unzip tokenizer_model.zip
+    curl -fSL -o tokenizer.json https://huggingface.co/togethercomputer/RedPajama-INCITE-Chat-3B-v1/resolve/main/tokenizer.json
 fi
 if [ ! -f "vocab.json" ]; then
-    wget https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/resolve/main/vocab.json
+    curl -fSL -o vocab.json https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/resolve/main/vocab.json
 fi
 if [ ! -f "merges.txt" ]; then
-    wget https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/resolve/main/merges.txt
+    curl -fSL -o merges.txt https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/resolve/main/merges.txt
 fi
 cd ..
 
 # run
 echo "---Running example----"
-./build/example
+if [ "$OS" = "Windows_NT" ] || [ -n "$WINDIR" ]; then
+    # Windows
+    if [ -f "build/Release/example.exe" ]; then
+        ./build/Release/example.exe
+    elif [ -f "build/example.exe" ]; then
+        ./build/example.exe
+    else
+        echo "Error: example executable not found"
+        exit 1
+    fi
+else
+    # Unix-like
+    ./build/example
+fi
