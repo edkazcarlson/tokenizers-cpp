@@ -45,7 +45,7 @@ class Tokenizer {
     * \param texts The input texts.
     * \returns The encoded token ids.
     */
-    virtual std::vector<std::vector<int32_t>> EncodeBatch(const std::vector<std::string>& texts) {
+    virtual std::vector<std::vector<int32_t>> EncodeBatch(const std::vector<std::string>& texts, bool add_special_tokens) {
       // Fall back when the derived class does not implement this function.
       std::vector<std::vector<int32_t>> ret;
       ret.reserve(texts.size());

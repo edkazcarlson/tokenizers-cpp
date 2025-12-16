@@ -23,11 +23,17 @@ std::string LoadBytesFromFile(const std::string& path) {
   return data;
 }
 
-void PrintEncodeResult(const std::vector<int>& ids) {
+void PrintEncodeResult(const std::vector<std::vector<int32_t>>& ids) {
   std::cout << "tokens=[";
-  for (size_t i = 0; i < ids.size(); ++i) {
-    if (i != 0) std::cout << ", ";
-    std::cout << ids[i];
+  for (const auto& id : ids) {
+    std::cout << "[";
+    for (size_t i = 0; i < id.size(); ++i) {
+      if (i != 0) {
+        std::cout << ", ";
+      }
+      std::cout << id[i];
+    }
+    std::cout << "]";
   }
   std::cout << "]" << std::endl;
 }
@@ -56,16 +62,19 @@ void TestTokenizer(std::unique_ptr<Tokenizer> tok, bool print_vocab = false,
     );
 
     std::cout << "Prompt: " << prompt << std::endl; 
-    std::vector<int> ids = tok->Encode(prompt, add_special_tokens);
+    std::vector<std::vector<int32_t>> ids = tok->EncodeBatch({prompt}, add_special_tokens);
     PrintEncodeResult(ids);
     
     // Debug: Print first few token strings
     std::cout << "First 10 token strings: [";
-    for (size_t i = 0; i < std::min(ids.size(), size_t(10)); ++i) {
-      if (i != 0) std::cout << ", ";
-      std::cout << "\"" << tok->IdToToken(ids[i]) << "\"";
+    for (const auto& idVec : ids) {
+      for (size_t i = 0; i < std::min(idVec.size(), size_t(10)); ++i) {
+        if (i != 0) std::cout << ", ";
+        std::cout << "\"" << tok->IdToToken(idVec[i]) << "\"";
+      }
+      std::cout << "]" << std::endl;
     }
-    std::cout << "]" << std::endl;
+
 
     // Check #3. GetVocabSize
     auto vocab_size = tok->GetVocabSize();
@@ -88,11 +97,6 @@ void MyTokenizer() {
   // Note: all the current factory APIs takes in-memory blob as input.
   // This gives some flexibility on how these blobs can be read.
   auto tok = Tokenizer::FromBlobJSON(blob);
-
-  auto end = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-
-  std::cout << "Load time: " << duration << " ms" << std::endl;
 
   TestTokenizer(std::move(tok), false, true, true);  // Use add_special_tokens=true to match Python behavior
 }
